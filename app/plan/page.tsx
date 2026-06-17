@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { generatePlan, type WeekPlan, type DayPlan } from '@/lib/planner';
 import type { DietTag, Meal } from '@/lib/data';
@@ -77,7 +77,7 @@ function DayCard({ day, householdSize }: { day: DayPlan; householdSize: number }
   );
 }
 
-export default function PlanPage() {
+function PlanContent() {
   const params = useSearchParams();
   const router = useRouter();
   const [plan, setPlan] = useState<WeekPlan | null>(null);
@@ -194,5 +194,13 @@ export default function PlanPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function PlanPage() {
+  return (
+    <Suspense fallback={<main className="page"><div className="container"><p style={{ color: 'var(--ink-3)', textAlign: 'center' }}>Building your plan…</p></div></main>}>
+      <PlanContent />
+    </Suspense>
   );
 }
