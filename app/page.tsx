@@ -1,66 +1,116 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { DietTag } from '@/lib/data';
+
+const DIET_OPTIONS: { value: DietTag; label: string; emoji: string; desc: string }[] = [
+  { value: 'vegetarian',  emoji: '🥦', label: 'Vegetarian',  desc: 'No meat or fish' },
+  { value: 'vegan',       emoji: '🌱', label: 'Vegan',        desc: 'No animal products' },
+  { value: 'halal',       emoji: '☪️',  label: 'Halal',        desc: 'Halal-certified meats only' },
+  { value: 'gluten-free', emoji: '🌾', label: 'Gluten-Free', desc: 'No wheat, barley, or rye' },
+  { value: 'dairy-free',  emoji: '🥛', label: 'Dairy-Free',  desc: 'No milk, cheese, or butter' },
+];
 
 export default function Home() {
+  const router = useRouter();
+  const [budget, setBudget] = useState('');
+  const [household, setHousehold] = useState('2');
+  const [selectedTags, setSelectedTags] = useState<Set<DietTag>>(new Set());
+
+  function toggleTag(tag: DietTag) {
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      next.has(tag) ? next.delete(tag) : next.add(tag);
+      return next;
+    });
+  }
+
+  function handleSubmit(e: { preventDefault(): void }) {
+    e.preventDefault();
+    const b = parseFloat(budget);
+    if (!b || b <= 0) return;
+    const tags = Array.from(selectedTags).join(',');
+    const q = new URLSearchParams({ budget: String(b), household, tags });
+    router.push(`/plan?${q}`);
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="page">
+      <div className="container" style={{ maxWidth: 520 }}>
+        <div className="header">
+          <div className="header__logo">🥦 MealPlan</div>
+          <p className="header__sub">A 7-day meal plan that fits your budget</p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="card">
+          <form className="form" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="field">
+                <label htmlFor="budget">Monthly budget (USD)</label>
+                <input
+                  id="budget"
+                  className="input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 400"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="household">Household size</label>
+                <div className="select-wrap">
+                  <select
+                    id="household"
+                    className="select"
+                    value={household}
+                    onChange={(e) => setHousehold(e.target.value)}
+                  >
+                    {[1,2,3,4,5,6,7,8].map((n) => (
+                      <option key={n} value={n}>{n} {n === 1 ? 'person' : 'people'}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>Dietary needs <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--ink-3)' }}>(select all that apply)</span></label>
+              <div className="diet-grid">
+                {DIET_OPTIONS.map((o) => {
+                  const checked = selectedTags.has(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      className={`diet-chip ${checked ? 'diet-chip--active' : ''}`}
+                      onClick={() => toggleTag(o.value)}
+                    >
+                      <span>{o.emoji}</span>
+                      <span className="diet-chip__label">{o.label}</span>
+                      <span className="diet-chip__desc">{o.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedTags.size === 0 && (
+                <span className="hint">No restrictions selected — plan includes all foods (omnivore).</span>
+              )}
+            </div>
+
+            <button type="submit" className="btn btn--primary">
+              Generate my plan →
+            </button>
+          </form>
         </div>
-      </main>
-    </div>
+
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-3)', marginTop: 20 }}>
+          Budget guidance based on USDA Thrifty Food Plan (2024)
+        </p>
+      </div>
+    </main>
   );
 }
