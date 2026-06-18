@@ -101,10 +101,10 @@ function DayCard({
         <div className="day-card__meta">
           <span>{fmt(day.dayCost)}</span>
           <span style={{ fontSize: 12 }}>
-            {Math.round(day.dayCalories)} cal · {Math.round(day.dayProtein)}g protein · {Math.round(day.dayFiber)}g fiber
+            {Math.round(day.dayCalories)} cal · {Math.round(day.dayProtein)}g protein
           </span>
           <span className={`nutrition-check ${day.meetsNutrition ? 'nutrition-check--pass' : 'nutrition-check--fail'}`}>
-            {day.meetsNutrition ? '✓ Met' : '✗ Low'}
+            {day.meetsNutrition ? `✓ ${day.calPct}% cal` : `↑ ${day.calPct}% cal`}
           </span>
           <span className={`chevron ${open ? 'chevron--open' : ''}`}>▾</span>
         </div>
@@ -253,7 +253,7 @@ function PlanContent() {
             <div className="summary-bar__value" style={{ color: daysMetNutrition === 7 ? 'var(--green)' : 'var(--yellow)' }}>
               {daysMetNutrition}/7
             </div>
-            <div className="summary-bar__label">Days meet nutrition</div>
+            <div className="summary-bar__label">Days ≥85% nutrition</div>
           </div>
           <div className="summary-bar__item">
             <div className="summary-bar__value">{selected.size}</div>

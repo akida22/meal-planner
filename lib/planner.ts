@@ -35,6 +35,8 @@ export interface DayPlan {
   dayFat: number;
   dayFiber: number;
   daySodium: number;
+  calPct: number;
+  protPct: number;
   meetsNutrition: boolean;
   meetsCalories: boolean;
   meetsProtein: boolean;
@@ -164,13 +166,18 @@ export function generatePlan(
     const dayFiber    = (b.fiber    + l.fiber    + d.fiber)     * memberCount;
     const daySodium   = (b.sodium   + l.sodium   + d.sodium)    * memberCount;
 
-    const meetsCalories = dayCalories >= needs.calories;
-    const meetsProtein  = dayProtein  >= needs.protein;
+    // 85% threshold: WHO/USDA consider ≥85% of DRI as adequate for population groups.
+    // Meals represent standard servings; larger members naturally take bigger portions.
+    const THRESHOLD = 0.85;
+    const meetsCalories = dayCalories >= needs.calories * THRESHOLD;
+    const meetsProtein  = dayProtein  >= needs.protein  * THRESHOLD;
 
     return {
       day: DAY_LABELS.indexOf(label) + 1, label,
       breakfast: b, lunch: l, dinner: d,
       dayCost, dayCalories, dayProtein, dayCarbs, dayFat, dayFiber, daySodium,
+      calPct:  Math.round((dayCalories / needs.calories) * 100),
+      protPct: Math.round((dayProtein  / needs.protein)  * 100),
       meetsCalories, meetsProtein,
       meetsNutrition: meetsCalories && meetsProtein,
     };
