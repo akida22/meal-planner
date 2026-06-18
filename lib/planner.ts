@@ -82,6 +82,7 @@ function score(
   dailyBudget: number,
   needs: NutritionNeeds,
   usedCount: Record<string, number>,
+  rand: () => number,
 ): number {
   const cost = (b.costPerServing + l.costPerServing + d.costPerServing) * memberCount;
   if (cost > dailyBudget) return -Infinity;
@@ -98,12 +99,17 @@ function score(
     (usedCount[d.id] ?? 0)
   ) * 0.5;
 
+  // Small seeded noise (max ±1.5 pts) so different seeds break ties differently
+  // while never overriding a genuine nutrition difference (20 pts gap).
+  const noise = (rand() - 0.5) * 3;
+
   return (
     (cal  >= needs.calories ? 20 : (cal  / needs.calories) * 10) +
     (prot >= needs.protein  ? 20 : (prot / needs.protein)  * 10) +
     (fiber >= needs.fiber   ? 5  : (fiber / needs.fiber)   * 2.5) +
     budgetUse * 4 +
-    variety
+    variety +
+    noise
   );
 }
 
@@ -111,13 +117,14 @@ function pickDay(
   breakfasts: Meal[], lunches: Meal[], dinners: Meal[],
   memberCount: number, dailyBudget: number,
   needs: NutritionNeeds, usedCount: Record<string, number>,
+  rand: () => number,
 ): { b: Meal; l: Meal; d: Meal } {
   let best: { b: Meal; l: Meal; d: Meal; s: number } | null = null;
 
   for (const b of breakfasts) {
     for (const l of lunches) {
       for (const d of dinners) {
-        const s = score(b, l, d, memberCount, dailyBudget, needs, usedCount);
+        const s = score(b, l, d, memberCount, dailyBudget, needs, usedCount, rand);
         if (best === null || s > best.s) best = { b, l, d, s };
       }
     }
@@ -152,7 +159,7 @@ export function generatePlan(
   const usedCount: Record<string, number> = {};
 
   const days: DayPlan[] = DAY_LABELS.map((label) => {
-    const { b, l, d } = pickDay(bs, ls, ds, memberCount, dailyBudget, needs, usedCount);
+    const { b, l, d } = pickDay(bs, ls, ds, memberCount, dailyBudget, needs, usedCount, rand);
 
     usedCount[b.id] = (usedCount[b.id] ?? 0) + 1;
     usedCount[l.id] = (usedCount[l.id] ?? 0) + 1;
