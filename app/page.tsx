@@ -69,7 +69,10 @@ export default function Home() {
       <div className="container">
         <nav className="nav">
           <div className="nav__logo">🥦 MealPlan</div>
-          {!showForm && <button className="btn btn--primary btn--sm" onClick={() => setShowForm(true)}>Get started →</button>}
+          <div className="nav__cta">
+            <a className="btn btn--ghost btn--sm" href="/shopping">🛒 Saved list</a>
+            {!showForm && <button className="btn btn--primary btn--sm" onClick={() => setShowForm(true)}>Get started →</button>}
+          </div>
         </nav>
       </div>
 

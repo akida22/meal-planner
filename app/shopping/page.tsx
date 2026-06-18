@@ -67,14 +67,23 @@ function ShoppingContent() {
   const [saved,    setSaved]    = useState(false);
 
   useEffect(() => {
-    if (!mealIds.length) return;
-    const g = buildList(mealIds);
-    setGrouped(g);
-    // Restore checked state from localStorage
     try {
-      const stored = localStorage.getItem(STORAGE_KEY + '-checked');
-      if (stored) setChecked(new Set(JSON.parse(stored)));
+      const storedChecked = localStorage.getItem(STORAGE_KEY + '-checked');
+      if (storedChecked) setChecked(new Set(JSON.parse(storedChecked)));
     } catch {}
+
+    if (mealIds.length) {
+      setGrouped(buildList(mealIds));
+    } else {
+      // No ids in URL — load previously saved list from localStorage
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.grouped) setGrouped(parsed.grouped);
+        }
+      } catch {}
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsRaw]);
 
