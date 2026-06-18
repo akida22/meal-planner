@@ -10,6 +10,29 @@ const TAG_LABELS: Record<DietTag, string> = {
   'gluten-free': 'Gluten-Free', 'dairy-free': 'Dairy-Free',
 };
 
+// Fallback gradients when Unsplash photos don't load
+const FALLBACK_COLORS: Record<Meal['type'], { bg: string; emoji: string }> = {
+  breakfast: { bg: 'linear-gradient(135deg,#FFD4A8,#F4924A)', emoji: '🍳' },
+  lunch:     { bg: 'linear-gradient(135deg,#A8D5B5,#4A7C59)', emoji: '🥗' },
+  dinner:    { bg: 'linear-gradient(135deg,#C9A87C,#7A4F2A)', emoji: '🍽️' },
+};
+
+function MealPhoto({ meal }: { meal: Meal }) {
+  const [failed, setFailed] = useState(false);
+  const fb = FALLBACK_COLORS[meal.type];
+  if (failed) {
+    return (
+      <div style={{ width: '100%', height: '100%', background: fb.bg, display: 'grid', placeItems: 'center', fontSize: 28 }}>
+        {fb.emoji}
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={meal.photo} alt={meal.name} onError={() => setFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+  );
+}
+
 const MEAL_META: Record<Meal['type'], { emoji: string; label: string }> = {
   breakfast: { emoji: '☀️', label: 'Breakfast' },
   lunch:     { emoji: '🥗', label: 'Lunch' },
@@ -32,8 +55,7 @@ function MealRow({
         <div className="meal-row__type-label">{meta.label}</div>
       </div>
       <div className="meal-row__photo">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={meal.photo} alt={meal.name} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <MealPhoto meal={meal} />
       </div>
       <div>
         <div className="meal-row__name">{meal.name}</div>
