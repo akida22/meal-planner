@@ -1,8 +1,19 @@
 export type DietTag = 'vegetarian' | 'vegan' | 'halal' | 'gluten-free' | 'dairy-free';
 
+export type ShoppingCategory =
+  | 'Produce'
+  | 'Protein'
+  | 'Grains & Bread'
+  | 'Dairy & Eggs'
+  | 'Canned & Pantry'
+  | 'Spices & Condiments'
+  | 'Frozen'
+  | 'Oils & Fats';
+
 export interface Ingredient {
   name: string;
   amount: string;
+  category: ShoppingCategory;
 }
 
 export interface Meal {
@@ -10,52 +21,47 @@ export interface Meal {
   name: string;
   type: 'breakfast' | 'lunch' | 'dinner';
   tags: DietTag[];
+  photo: string; // Unsplash photo URL
   ingredients: Ingredient[];
-  // All values are per person per meal (USDA-based estimates)
+  // Per-person values (scaled by household at runtime)
   calories: number;
-  protein: number;  // g
-  carbs: number;    // g
-  fat: number;      // g
-  fiber: number;    // g
-  sodium: number;   // mg
-  costPerServing: number; // USD
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sodium: number;
+  costPerServing: number;
 }
 
-// USDA Thrifty Plan weekly minimums (2024) by household size
 export const USDA_WEEKLY_MINIMUMS: Record<number, number> = {
   1: 47, 2: 87, 3: 122, 4: 155, 5: 183, 6: 213, 7: 242, 8: 271,
 };
 
-export function getUsdaMinimum(householdSize: number): number {
-  if (householdSize <= 0) return USDA_WEEKLY_MINIMUMS[1];
-  if (householdSize > 8) return USDA_WEEKLY_MINIMUMS[8] + (householdSize - 8) * 30;
-  return USDA_WEEKLY_MINIMUMS[householdSize];
+export function getUsdaMinimum(members: number): number {
+  const clamped = Math.max(1, Math.min(8, members));
+  const base = USDA_WEEKLY_MINIMUMS[clamped] ?? USDA_WEEKLY_MINIMUMS[8];
+  const extra = members > 8 ? (members - 8) * 30 : 0;
+  return base + extra;
 }
 
-// Daily nutrition targets per person (USDA 2020-2025 Dietary Guidelines)
-export const DAILY_PER_PERSON = {
-  calories: 2000,
-  protein: 50,   // g  (10–35% of calories)
-  fiber: 28,     // g
-  sodium: 2300,  // mg
-};
+const UNSPLASH = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=400&h=300&q=75`;
 
 export const MEALS: Meal[] = [
-  // ── BREAKFASTS ───────────────────────────────────────────────────────────────
-
+  // ─── BREAKFASTS ─────────────────────────────────────────────────────────────
   {
     id: 'b1',
     name: 'Oatmeal with Banana & Honey',
     type: 'breakfast',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1495214783159-3503fd1b572d'),
     ingredients: [
-      { name: 'Rolled oats (GF certified)', amount: '½ cup dry' },
-      { name: 'Banana', amount: '1 medium' },
-      { name: 'Honey', amount: '1 tbsp' },
-      { name: 'Cinnamon', amount: 'pinch' },
-      { name: 'Water or oat milk', amount: '1 cup' },
+      { name: 'Rolled oats (GF certified)', amount: '½ cup per person', category: 'Grains & Bread' },
+      { name: 'Banana', amount: '1 per person', category: 'Produce' },
+      { name: 'Honey', amount: '1 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Cinnamon', amount: 'pinch', category: 'Spices & Condiments' },
+      { name: 'Oat milk or water', amount: '1 cup per person', category: 'Dairy & Eggs' },
     ],
-    // Oats 150 cal / Banana 105 / Honey 64 / oat milk ~45
     calories: 364, protein: 8, carbs: 74, fat: 4, fiber: 7, sodium: 15,
     costPerServing: 0.85,
   },
@@ -64,13 +70,13 @@ export const MEALS: Meal[] = [
     name: 'Scrambled Eggs & Whole Wheat Toast',
     type: 'breakfast',
     tags: ['vegetarian', 'halal'],
+    photo: UNSPLASH('1525351484163-7529414344d8'),
     ingredients: [
-      { name: 'Eggs', amount: '2 large' },
-      { name: 'Whole wheat bread', amount: '2 slices' },
-      { name: 'Butter', amount: '1 tsp' },
-      { name: 'Salt & pepper', amount: 'to taste' },
+      { name: 'Eggs', amount: '2 per person', category: 'Dairy & Eggs' },
+      { name: 'Whole wheat bread', amount: '2 slices per person', category: 'Grains & Bread' },
+      { name: 'Butter', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Salt & pepper', amount: 'to taste', category: 'Spices & Condiments' },
     ],
-    // 2 eggs 140, 2 slices WW bread 160, butter 34
     calories: 334, protein: 20, carbs: 29, fat: 16, fiber: 4, sodium: 420,
     costPerServing: 1.10,
   },
@@ -79,13 +85,13 @@ export const MEALS: Meal[] = [
     name: 'Greek Yogurt with Berries & Granola',
     type: 'breakfast',
     tags: ['vegetarian', 'halal', 'gluten-free'],
+    photo: UNSPLASH('1488477181946-6428a0291777'),
     ingredients: [
-      { name: 'Plain Greek yogurt (whole milk)', amount: '1 cup' },
-      { name: 'Mixed berries (fresh or frozen)', amount: '½ cup' },
-      { name: 'GF granola', amount: '2 tbsp' },
-      { name: 'Honey', amount: '1 tsp' },
+      { name: 'Plain Greek yogurt', amount: '1 cup per person', category: 'Dairy & Eggs' },
+      { name: 'Mixed berries', amount: '½ cup per person', category: 'Produce' },
+      { name: 'GF granola', amount: '2 tbsp per person', category: 'Grains & Bread' },
+      { name: 'Honey', amount: '1 tsp per person', category: 'Canned & Pantry' },
     ],
-    // Yogurt 150, berries 40, granola 70, honey 21
     calories: 281, protein: 14, carbs: 36, fat: 9, fiber: 3, sodium: 60,
     costPerServing: 1.40,
   },
@@ -94,13 +100,13 @@ export const MEALS: Meal[] = [
     name: 'Avocado Toast',
     type: 'breakfast',
     tags: ['vegetarian', 'vegan', 'halal', 'dairy-free'],
+    photo: UNSPLASH('1541519227354-08fa5d50c820'),
     ingredients: [
-      { name: 'Whole wheat bread', amount: '2 slices' },
-      { name: 'Avocado', amount: '½ medium' },
-      { name: 'Lemon juice', amount: '1 tsp' },
-      { name: 'Red pepper flakes & salt', amount: 'pinch each' },
+      { name: 'Whole wheat bread', amount: '2 slices per person', category: 'Grains & Bread' },
+      { name: 'Avocado', amount: '½ per person', category: 'Produce' },
+      { name: 'Lemon juice', amount: '1 tsp per person', category: 'Produce' },
+      { name: 'Red pepper flakes & salt', amount: 'pinch', category: 'Spices & Condiments' },
     ],
-    // Bread 160, avocado ½ 120
     calories: 295, protein: 8, carbs: 32, fat: 16, fiber: 8, sodium: 310,
     costPerServing: 1.60,
   },
@@ -109,14 +115,14 @@ export const MEALS: Meal[] = [
     name: 'Berry Smoothie Bowl',
     type: 'breakfast',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1490645935967-10de6ba17061'),
     ingredients: [
-      { name: 'Frozen banana', amount: '1 medium' },
-      { name: 'Frozen mixed berries', amount: '½ cup' },
-      { name: 'Oat milk', amount: '¼ cup' },
-      { name: 'Chia seeds', amount: '1 tbsp' },
-      { name: 'Hemp seeds (topping)', amount: '1 tbsp' },
+      { name: 'Frozen banana', amount: '1 per person', category: 'Frozen' },
+      { name: 'Frozen mixed berries', amount: '½ cup per person', category: 'Frozen' },
+      { name: 'Oat milk', amount: '¼ cup per person', category: 'Dairy & Eggs' },
+      { name: 'Chia seeds', amount: '1 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Hemp seeds', amount: '1 tbsp per person', category: 'Canned & Pantry' },
     ],
-    // Banana 105, berries 40, oat milk 15, chia 60, hemp 57
     calories: 277, protein: 9, carbs: 44, fat: 9, fiber: 10, sodium: 30,
     costPerServing: 1.25,
   },
@@ -125,14 +131,14 @@ export const MEALS: Meal[] = [
     name: 'Fluffy Pancakes with Maple Syrup',
     type: 'breakfast',
     tags: ['vegetarian', 'halal'],
+    photo: UNSPLASH('1567620905732-2d1ec7ab7445'),
     ingredients: [
-      { name: 'All-purpose flour', amount: '½ cup' },
-      { name: 'Egg', amount: '1 large' },
-      { name: 'Milk', amount: '½ cup' },
-      { name: 'Baking powder', amount: '1 tsp' },
-      { name: 'Maple syrup', amount: '2 tbsp' },
+      { name: 'All-purpose flour', amount: '½ cup per person', category: 'Grains & Bread' },
+      { name: 'Egg', amount: '1 per person', category: 'Dairy & Eggs' },
+      { name: 'Milk', amount: '½ cup per person', category: 'Dairy & Eggs' },
+      { name: 'Baking powder', amount: '1 tsp', category: 'Spices & Condiments' },
+      { name: 'Maple syrup', amount: '2 tbsp per person', category: 'Canned & Pantry' },
     ],
-    // Pancakes ~200 cal, syrup 104
     calories: 390, protein: 10, carbs: 68, fat: 8, fiber: 2, sodium: 380,
     costPerServing: 0.95,
   },
@@ -141,14 +147,14 @@ export const MEALS: Meal[] = [
     name: 'Ginger Rice Porridge (Congee)',
     type: 'breakfast',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1547592180-85f173990554'),
     ingredients: [
-      { name: 'White rice', amount: '¼ cup dry' },
-      { name: 'Low-sodium vegetable broth', amount: '2 cups' },
-      { name: 'Fresh ginger', amount: '1 tsp grated' },
-      { name: 'Green onion', amount: '1 stalk' },
-      { name: 'Sesame oil (finish)', amount: '½ tsp' },
+      { name: 'White rice', amount: '¼ cup dry per person', category: 'Grains & Bread' },
+      { name: 'Low-sodium vegetable broth', amount: '2 cups per person', category: 'Canned & Pantry' },
+      { name: 'Fresh ginger', amount: '1 tsp grated', category: 'Produce' },
+      { name: 'Green onion', amount: '1 stalk per person', category: 'Produce' },
+      { name: 'Sesame oil', amount: '½ tsp per person', category: 'Oils & Fats' },
     ],
-    // Rice 170, broth 15, sesame oil 20
     calories: 215, protein: 4, carbs: 42, fat: 3, fiber: 1, sodium: 320,
     costPerServing: 0.55,
   },
@@ -157,13 +163,13 @@ export const MEALS: Meal[] = [
     name: 'Peanut Butter Banana Toast',
     type: 'breakfast',
     tags: ['vegetarian', 'vegan', 'halal', 'dairy-free'],
+    photo: UNSPLASH('1541442088-a36533bebafd'),
     ingredients: [
-      { name: 'Whole wheat bread', amount: '2 slices' },
-      { name: 'Natural peanut butter', amount: '2 tbsp' },
-      { name: 'Banana', amount: '½ medium' },
-      { name: 'Honey', amount: '1 tsp' },
+      { name: 'Whole wheat bread', amount: '2 slices per person', category: 'Grains & Bread' },
+      { name: 'Natural peanut butter', amount: '2 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Banana', amount: '½ per person', category: 'Produce' },
+      { name: 'Honey', amount: '1 tsp per person', category: 'Canned & Pantry' },
     ],
-    // Bread 160, PB 190, banana ½ 52, honey 21
     calories: 423, protein: 14, carbs: 52, fat: 17, fiber: 6, sodium: 290,
     costPerServing: 0.90,
   },
@@ -172,33 +178,32 @@ export const MEALS: Meal[] = [
     name: 'Boiled Eggs & Seasonal Fruit Plate',
     type: 'breakfast',
     tags: ['vegetarian', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1482049016688-2d3e1b311543'),
     ingredients: [
-      { name: 'Eggs', amount: '2 large' },
-      { name: 'Seasonal fruit (apple, orange, or grapes)', amount: '1 cup' },
-      { name: 'Olive oil drizzle', amount: '1 tsp' },
-      { name: 'Salt & pepper', amount: 'to taste' },
+      { name: 'Eggs', amount: '2 per person', category: 'Dairy & Eggs' },
+      { name: 'Seasonal fruit', amount: '1 cup per person', category: 'Produce' },
+      { name: 'Olive oil drizzle', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Salt & pepper', amount: 'to taste', category: 'Spices & Condiments' },
     ],
-    // Eggs 140, fruit 80, olive oil 40
     calories: 260, protein: 13, carbs: 20, fat: 14, fiber: 3, sodium: 130,
     costPerServing: 1.00,
   },
 
-  // ── LUNCHES ──────────────────────────────────────────────────────────────────
-
+  // ─── LUNCHES ────────────────────────────────────────────────────────────────
   {
     id: 'l1',
     name: 'Red Lentil Soup',
     type: 'lunch',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1547592166-23ac45744acd'),
     ingredients: [
-      { name: 'Red lentils', amount: '½ cup dry' },
-      { name: 'Canned diced tomatoes', amount: '⅓ cup' },
-      { name: 'Onion', amount: '¼ medium' },
-      { name: 'Garlic', amount: '2 cloves' },
-      { name: 'Cumin, turmeric, paprika', amount: '½ tsp each' },
-      { name: 'Low-sodium vegetable broth', amount: '1½ cups' },
+      { name: 'Red lentils', amount: '½ cup dry per person', category: 'Canned & Pantry' },
+      { name: 'Canned diced tomatoes', amount: '⅓ cup per person', category: 'Canned & Pantry' },
+      { name: 'Onion', amount: '¼ per person', category: 'Produce' },
+      { name: 'Garlic', amount: '2 cloves per person', category: 'Produce' },
+      { name: 'Cumin, turmeric, paprika', amount: '½ tsp each', category: 'Spices & Condiments' },
+      { name: 'Low-sodium vegetable broth', amount: '1½ cups per person', category: 'Canned & Pantry' },
     ],
-    // Lentils cooked 230, tomatoes 20, broth 15
     calories: 298, protein: 18, carbs: 50, fat: 2, fiber: 16, sodium: 340,
     costPerServing: 0.90,
   },
@@ -207,15 +212,15 @@ export const MEALS: Meal[] = [
     name: 'Halal Chicken & Brown Rice Bowl',
     type: 'lunch',
     tags: ['halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1512058564366-18510be2db19'),
     ingredients: [
-      { name: 'Halal boneless chicken thigh', amount: '4 oz' },
-      { name: 'Brown rice', amount: '½ cup dry' },
-      { name: 'Broccoli', amount: '1 cup' },
-      { name: 'Tamari (GF soy sauce)', amount: '1 tbsp' },
-      { name: 'Olive oil', amount: '1 tsp' },
-      { name: 'Garlic powder', amount: '½ tsp' },
+      { name: 'Halal boneless chicken thigh', amount: '4 oz per person', category: 'Protein' },
+      { name: 'Brown rice', amount: '½ cup dry per person', category: 'Grains & Bread' },
+      { name: 'Broccoli', amount: '1 cup per person', category: 'Produce' },
+      { name: 'Tamari (GF soy sauce)', amount: '1 tbsp per person', category: 'Spices & Condiments' },
+      { name: 'Olive oil', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Garlic powder', amount: '½ tsp', category: 'Spices & Condiments' },
     ],
-    // Chicken 209, brown rice 215, broccoli 30, oil 40
     calories: 498, protein: 34, carbs: 54, fat: 12, fiber: 5, sodium: 590,
     costPerServing: 2.20,
   },
@@ -224,15 +229,15 @@ export const MEALS: Meal[] = [
     name: 'Black Bean Corn Tacos',
     type: 'lunch',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1565299585323-38d6b0865b47'),
     ingredients: [
-      { name: 'Corn tortillas (6-inch)', amount: '3' },
-      { name: 'Canned black beans (drained)', amount: '½ cup' },
-      { name: 'Corn kernels', amount: '¼ cup' },
-      { name: 'Shredded cabbage', amount: '½ cup' },
-      { name: 'Fresh salsa', amount: '2 tbsp' },
-      { name: 'Lime', amount: '¼' },
+      { name: 'Corn tortillas (6-inch)', amount: '3 per person', category: 'Grains & Bread' },
+      { name: 'Canned black beans', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Corn kernels', amount: '¼ cup per person', category: 'Frozen' },
+      { name: 'Shredded cabbage', amount: '½ cup per person', category: 'Produce' },
+      { name: 'Fresh salsa', amount: '2 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Lime', amount: '¼ per person', category: 'Produce' },
     ],
-    // Tortillas 3×50=150, beans 110, corn 35, cabbage 11
     calories: 340, protein: 13, carbs: 66, fat: 4, fiber: 12, sodium: 310,
     costPerServing: 1.30,
   },
@@ -241,14 +246,14 @@ export const MEALS: Meal[] = [
     name: 'Tuna Salad Sandwich',
     type: 'lunch',
     tags: ['halal', 'dairy-free'],
+    photo: UNSPLASH('1509722747041-616f39b57bea'),
     ingredients: [
-      { name: 'Canned light tuna in water', amount: '3 oz drained' },
-      { name: 'Whole wheat bread', amount: '2 slices' },
-      { name: 'Vegan mayo', amount: '1 tbsp' },
-      { name: 'Celery', amount: '1 stalk' },
-      { name: 'Lettuce & tomato', amount: '2 leaves + 2 slices' },
+      { name: 'Canned light tuna in water', amount: '3 oz per person', category: 'Canned & Pantry' },
+      { name: 'Whole wheat bread', amount: '2 slices per person', category: 'Grains & Bread' },
+      { name: 'Vegan mayo', amount: '1 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Celery', amount: '1 stalk per person', category: 'Produce' },
+      { name: 'Lettuce & tomato', amount: '2 leaves + 2 slices per person', category: 'Produce' },
     ],
-    // Tuna 70, bread 160, mayo 50, celery 6, veggies 20
     calories: 346, protein: 27, carbs: 31, fat: 12, fiber: 5, sodium: 560,
     costPerServing: 1.80,
   },
@@ -257,31 +262,31 @@ export const MEALS: Meal[] = [
     name: 'Chickpea & Spinach Stew',
     type: 'lunch',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1455619452474-d2be8b1e70cd'),
     ingredients: [
-      { name: 'Canned chickpeas (drained)', amount: '½ cup' },
-      { name: 'Fresh spinach', amount: '2 cups' },
-      { name: 'Canned diced tomatoes', amount: '¼ cup' },
-      { name: 'Garlic', amount: '2 cloves' },
-      { name: 'Olive oil', amount: '1 tsp' },
-      { name: 'Cumin & smoked paprika', amount: '½ tsp each' },
+      { name: 'Canned chickpeas', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Fresh spinach', amount: '2 cups per person', category: 'Produce' },
+      { name: 'Canned diced tomatoes', amount: '¼ cup per person', category: 'Canned & Pantry' },
+      { name: 'Garlic', amount: '2 cloves', category: 'Produce' },
+      { name: 'Olive oil', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Cumin & smoked paprika', amount: '½ tsp each', category: 'Spices & Condiments' },
     ],
-    // Chickpeas 135, spinach 14, tomatoes 10, oil 40
     calories: 230, protein: 10, carbs: 32, fat: 7, fiber: 9, sodium: 320,
     costPerServing: 1.10,
   },
   {
     id: 'l6',
-    name: 'Pasta with Marinara Sauce',
+    name: 'Whole Wheat Pasta with Marinara',
     type: 'lunch',
     tags: ['vegetarian', 'vegan', 'halal', 'dairy-free'],
+    photo: UNSPLASH('1621996346565-e3dbc646d9a9'),
     ingredients: [
-      { name: 'Whole wheat pasta', amount: '2 oz dry' },
-      { name: 'Marinara sauce', amount: '½ cup' },
-      { name: 'Garlic', amount: '2 cloves' },
-      { name: 'Olive oil', amount: '1 tsp' },
-      { name: 'Fresh basil', amount: 'handful' },
+      { name: 'Whole wheat pasta', amount: '2 oz dry per person', category: 'Grains & Bread' },
+      { name: 'Marinara sauce', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Garlic', amount: '2 cloves', category: 'Produce' },
+      { name: 'Olive oil', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Fresh basil', amount: 'handful', category: 'Produce' },
     ],
-    // WW pasta 180, marinara 70, oil 40
     calories: 322, protein: 11, carbs: 58, fat: 7, fiber: 7, sodium: 480,
     costPerServing: 1.00,
   },
@@ -290,15 +295,15 @@ export const MEALS: Meal[] = [
     name: 'Vegetable Egg Fried Rice',
     type: 'lunch',
     tags: ['vegetarian', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1603133872878-684f208fb84b'),
     ingredients: [
-      { name: 'Cooked white rice (day-old)', amount: '1 cup' },
-      { name: 'Eggs', amount: '2 large' },
-      { name: 'Frozen peas & carrots', amount: '½ cup' },
-      { name: 'Sesame oil', amount: '1 tsp' },
-      { name: 'Tamari (GF soy sauce)', amount: '1 tbsp' },
-      { name: 'Green onion', amount: '1 stalk' },
+      { name: 'Cooked white rice (day-old)', amount: '1 cup per person', category: 'Grains & Bread' },
+      { name: 'Eggs', amount: '2 per person', category: 'Dairy & Eggs' },
+      { name: 'Frozen peas & carrots', amount: '½ cup per person', category: 'Frozen' },
+      { name: 'Sesame oil', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Tamari (GF soy sauce)', amount: '1 tbsp per person', category: 'Spices & Condiments' },
+      { name: 'Green onion', amount: '1 stalk per person', category: 'Produce' },
     ],
-    // Rice 206, eggs 140, veggies 45, oil 40
     calories: 451, protein: 17, carbs: 60, fat: 14, fiber: 3, sodium: 640,
     costPerServing: 1.20,
   },
@@ -307,15 +312,15 @@ export const MEALS: Meal[] = [
     name: 'Peanut Noodle Bowl',
     type: 'lunch',
     tags: ['vegetarian', 'vegan', 'halal', 'dairy-free'],
+    photo: UNSPLASH('1563379091339-03b21ab4a4f8'),
     ingredients: [
-      { name: 'Rice noodles', amount: '2 oz dry' },
-      { name: 'Natural peanut butter', amount: '2 tbsp' },
-      { name: 'Soy sauce', amount: '1 tbsp' },
-      { name: 'Rice vinegar', amount: '1 tsp' },
-      { name: 'Shredded carrots & cucumber', amount: '½ cup each' },
-      { name: 'Lime juice', amount: '1 tsp' },
+      { name: 'Rice noodles', amount: '2 oz dry per person', category: 'Grains & Bread' },
+      { name: 'Natural peanut butter', amount: '2 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Soy sauce', amount: '1 tbsp per person', category: 'Spices & Condiments' },
+      { name: 'Shredded carrots', amount: '½ cup per person', category: 'Produce' },
+      { name: 'Cucumber', amount: '½ per person', category: 'Produce' },
+      { name: 'Lime juice', amount: '1 tsp per person', category: 'Produce' },
     ],
-    // Noodles 190, PB 190, veggies 30
     calories: 436, protein: 13, carbs: 62, fat: 15, fiber: 4, sodium: 680,
     costPerServing: 1.40,
   },
@@ -324,33 +329,32 @@ export const MEALS: Meal[] = [
     name: 'Halal Beef & Veggie Wrap',
     type: 'lunch',
     tags: ['halal', 'dairy-free'],
+    photo: UNSPLASH('1565958011703-44f9829ba187'),
     ingredients: [
-      { name: 'Halal ground beef (lean)', amount: '3 oz' },
-      { name: 'Large flour tortilla', amount: '1 (10-inch)' },
-      { name: 'Lettuce, tomato, onion', amount: '½ cup mixed' },
-      { name: 'Hot sauce', amount: '1 tsp' },
-      { name: 'Olive oil (cooking)', amount: '½ tsp' },
+      { name: 'Halal ground beef (lean)', amount: '3 oz per person', category: 'Protein' },
+      { name: 'Large flour tortilla', amount: '1 per person', category: 'Grains & Bread' },
+      { name: 'Lettuce, tomato, onion', amount: '½ cup mixed per person', category: 'Produce' },
+      { name: 'Hot sauce', amount: '1 tsp per person', category: 'Spices & Condiments' },
+      { name: 'Olive oil', amount: '½ tsp per person', category: 'Oils & Fats' },
     ],
-    // Beef 186, tortilla 220, veggies 20
     calories: 447, protein: 26, carbs: 43, fat: 17, fiber: 3, sodium: 540,
     costPerServing: 2.10,
   },
 
-  // ── DINNERS ──────────────────────────────────────────────────────────────────
-
+  // ─── DINNERS ────────────────────────────────────────────────────────────────
   {
     id: 'd1',
     name: 'Baked Chicken Thighs & Roasted Vegetables',
     type: 'dinner',
     tags: ['halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1598103442097-8b74394b960e'),
     ingredients: [
-      { name: 'Halal bone-in chicken thighs (skin-on)', amount: '5 oz raw' },
-      { name: 'Sweet potato', amount: '1 medium (150g)' },
-      { name: 'Broccoli florets', amount: '1 cup' },
-      { name: 'Olive oil', amount: '1 tbsp' },
-      { name: 'Garlic powder, smoked paprika, oregano', amount: '1 tsp each' },
+      { name: 'Halal chicken thighs (bone-in)', amount: '5 oz per person', category: 'Protein' },
+      { name: 'Sweet potato', amount: '1 medium per person', category: 'Produce' },
+      { name: 'Broccoli florets', amount: '1 cup per person', category: 'Produce' },
+      { name: 'Olive oil', amount: '1 tbsp per person', category: 'Oils & Fats' },
+      { name: 'Garlic powder, smoked paprika, oregano', amount: '1 tsp each', category: 'Spices & Condiments' },
     ],
-    // Chicken thigh baked 250, sweet potato 130, broccoli 30, oil 120
     calories: 495, protein: 36, carbs: 38, fat: 20, fiber: 7, sodium: 390,
     costPerServing: 2.60,
   },
@@ -359,16 +363,16 @@ export const MEALS: Meal[] = [
     name: 'Tofu & Vegetable Stir-Fry with Rice',
     type: 'dinner',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1464454709131-ffd692591ee5'),
     ingredients: [
-      { name: 'Extra-firm tofu', amount: '4 oz' },
-      { name: 'Bell pepper', amount: '½ large' },
-      { name: 'Snap peas', amount: '½ cup' },
-      { name: 'Carrots', amount: '½ cup sliced' },
-      { name: 'Tamari (GF)', amount: '2 tbsp' },
-      { name: 'Sesame oil', amount: '1 tsp' },
-      { name: 'White rice', amount: '½ cup dry' },
+      { name: 'Extra-firm tofu', amount: '4 oz per person', category: 'Protein' },
+      { name: 'Bell pepper', amount: '½ per person', category: 'Produce' },
+      { name: 'Snap peas', amount: '½ cup per person', category: 'Produce' },
+      { name: 'Carrots', amount: '½ cup sliced per person', category: 'Produce' },
+      { name: 'Tamari (GF)', amount: '2 tbsp per person', category: 'Spices & Condiments' },
+      { name: 'Sesame oil', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'White rice', amount: '½ cup dry per person', category: 'Grains & Bread' },
     ],
-    // Tofu 94, veggies 60, tamari 10, oil 40, rice 206
     calories: 438, protein: 22, carbs: 62, fat: 11, fiber: 5, sodium: 780,
     costPerServing: 1.80,
   },
@@ -377,14 +381,15 @@ export const MEALS: Meal[] = [
     name: 'Halal Ground Beef Tacos',
     type: 'dinner',
     tags: ['halal', 'gluten-free'],
+    photo: UNSPLASH('1565299585323-38d6b0865b47'),
     ingredients: [
-      { name: 'Halal lean ground beef', amount: '4 oz raw' },
-      { name: 'Corn tortillas (6-inch)', amount: '3' },
-      { name: 'Shredded Mexican cheese blend', amount: '2 tbsp' },
-      { name: 'Shredded lettuce & diced tomato', amount: '½ cup' },
-      { name: 'Taco seasoning (salt-reduced)', amount: '1 tsp' },
+      { name: 'Halal lean ground beef', amount: '4 oz per person', category: 'Protein' },
+      { name: 'Corn tortillas', amount: '3 per person', category: 'Grains & Bread' },
+      { name: 'Shredded Mexican cheese blend', amount: '2 tbsp per person', category: 'Dairy & Eggs' },
+      { name: 'Shredded lettuce', amount: '½ cup per person', category: 'Produce' },
+      { name: 'Roma tomato, diced', amount: '1 per person', category: 'Produce' },
+      { name: 'Taco seasoning', amount: '1 tsp per person', category: 'Spices & Condiments' },
     ],
-    // Beef cooked 248, tortillas 150, cheese 42, veggies 15
     calories: 497, protein: 33, carbs: 40, fat: 22, fiber: 5, sodium: 620,
     costPerServing: 2.80,
   },
@@ -393,15 +398,16 @@ export const MEALS: Meal[] = [
     name: 'Red Lentil Dal with Basmati Rice',
     type: 'dinner',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1546554137-f5d421635ac7'),
     ingredients: [
-      { name: 'Red lentils', amount: '½ cup dry' },
-      { name: 'Basmati rice', amount: '½ cup dry' },
-      { name: 'Onion, garlic, fresh ginger', amount: '¼ medium each' },
-      { name: 'Light coconut milk', amount: '¼ cup' },
-      { name: 'Garam masala, turmeric, cumin', amount: '1 tsp each' },
-      { name: 'Canned diced tomatoes', amount: '¼ cup' },
+      { name: 'Red lentils', amount: '½ cup dry per person', category: 'Canned & Pantry' },
+      { name: 'Basmati rice', amount: '½ cup dry per person', category: 'Grains & Bread' },
+      { name: 'Onion', amount: '¼ per person', category: 'Produce' },
+      { name: 'Garlic & fresh ginger', amount: '2 cloves, 1 tsp per person', category: 'Produce' },
+      { name: 'Light coconut milk', amount: '¼ cup per person', category: 'Canned & Pantry' },
+      { name: 'Garam masala, turmeric, cumin', amount: '1 tsp each', category: 'Spices & Condiments' },
+      { name: 'Canned diced tomatoes', amount: '¼ cup per person', category: 'Canned & Pantry' },
     ],
-    // Lentils 230, rice 206, coconut milk 45
     calories: 530, protein: 22, carbs: 90, fat: 8, fiber: 14, sodium: 190,
     costPerServing: 1.40,
   },
@@ -410,15 +416,15 @@ export const MEALS: Meal[] = [
     name: 'Halal Spaghetti Bolognese',
     type: 'dinner',
     tags: ['halal'],
+    photo: UNSPLASH('1621996346565-e3dbc646d9a9'),
     ingredients: [
-      { name: 'Whole wheat spaghetti', amount: '2 oz dry' },
-      { name: 'Halal lean ground beef', amount: '3 oz raw' },
-      { name: 'Marinara sauce', amount: '½ cup' },
-      { name: 'Onion & garlic', amount: '¼ onion, 2 cloves' },
-      { name: 'Olive oil', amount: '1 tsp' },
-      { name: 'Parmesan cheese', amount: '2 tbsp' },
+      { name: 'Whole wheat spaghetti', amount: '2 oz dry per person', category: 'Grains & Bread' },
+      { name: 'Halal lean ground beef', amount: '3 oz per person', category: 'Protein' },
+      { name: 'Marinara sauce', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Onion & garlic', amount: '¼ onion, 2 cloves per person', category: 'Produce' },
+      { name: 'Olive oil', amount: '1 tsp per person', category: 'Oils & Fats' },
+      { name: 'Parmesan cheese', amount: '2 tbsp per person', category: 'Dairy & Eggs' },
     ],
-    // Pasta 180, beef 186, marinara 70, cheese 44
     calories: 515, protein: 30, carbs: 54, fat: 18, fiber: 6, sodium: 590,
     costPerServing: 2.40,
   },
@@ -427,16 +433,16 @@ export const MEALS: Meal[] = [
     name: 'Black Bean Burrito Bowl',
     type: 'dinner',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1512058564366-18510be2db19'),
     ingredients: [
-      { name: 'White rice', amount: '½ cup dry' },
-      { name: 'Canned black beans (drained)', amount: '½ cup' },
-      { name: 'Frozen corn', amount: '¼ cup' },
-      { name: 'Fresh salsa', amount: '3 tbsp' },
-      { name: 'Avocado', amount: '¼ medium' },
-      { name: 'Lime juice', amount: '1 tbsp' },
-      { name: 'Cilantro', amount: 'handful' },
+      { name: 'White rice', amount: '½ cup dry per person', category: 'Grains & Bread' },
+      { name: 'Canned black beans', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Frozen corn', amount: '¼ cup per person', category: 'Frozen' },
+      { name: 'Fresh salsa', amount: '3 tbsp per person', category: 'Canned & Pantry' },
+      { name: 'Avocado', amount: '¼ per person', category: 'Produce' },
+      { name: 'Lime', amount: '¼ per person', category: 'Produce' },
+      { name: 'Cilantro', amount: 'handful', category: 'Produce' },
     ],
-    // Rice 206, beans 110, corn 35, avocado 60
     calories: 455, protein: 14, carbs: 80, fat: 9, fiber: 12, sodium: 280,
     costPerServing: 1.70,
   },
@@ -445,15 +451,15 @@ export const MEALS: Meal[] = [
     name: 'Baked Salmon with Quinoa & Asparagus',
     type: 'dinner',
     tags: ['halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1467003909585-2f8a72700288'),
     ingredients: [
-      { name: 'Atlantic salmon fillet', amount: '4 oz' },
-      { name: 'Quinoa', amount: '½ cup dry' },
-      { name: 'Asparagus', amount: '6 spears' },
-      { name: 'Lemon', amount: '¼' },
-      { name: 'Olive oil', amount: '1 tbsp' },
-      { name: 'Garlic & dill', amount: '1 clove, ½ tsp' },
+      { name: 'Atlantic salmon fillet', amount: '4 oz per person', category: 'Protein' },
+      { name: 'Quinoa', amount: '½ cup dry per person', category: 'Grains & Bread' },
+      { name: 'Asparagus', amount: '6 spears per person', category: 'Produce' },
+      { name: 'Lemon', amount: '¼ per person', category: 'Produce' },
+      { name: 'Olive oil', amount: '1 tbsp per person', category: 'Oils & Fats' },
+      { name: 'Dill & garlic', amount: '½ tsp dill, 1 clove per person', category: 'Spices & Condiments' },
     ],
-    // Salmon 177, quinoa 222, asparagus 20, oil 120
     calories: 539, protein: 38, carbs: 40, fat: 22, fiber: 6, sodium: 300,
     costPerServing: 3.50,
   },
@@ -462,15 +468,15 @@ export const MEALS: Meal[] = [
     name: 'Lentil & Mushroom Shepherd\'s Pie',
     type: 'dinner',
     tags: ['vegetarian', 'vegan', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1574484284002-952d92a03a40'),
     ingredients: [
-      { name: 'Brown mushrooms', amount: '1 cup' },
-      { name: 'Green or brown lentils', amount: '⅓ cup dry' },
-      { name: 'Russet potato (mashed topping)', amount: '1 medium' },
-      { name: 'Onion, carrot, celery', amount: '¼ cup each' },
-      { name: 'Low-sodium vegetable broth', amount: '½ cup' },
-      { name: 'Thyme & rosemary', amount: '½ tsp each' },
+      { name: 'Brown mushrooms', amount: '1 cup per person', category: 'Produce' },
+      { name: 'Green lentils', amount: '⅓ cup dry per person', category: 'Canned & Pantry' },
+      { name: 'Russet potato (mashed topping)', amount: '1 medium per person', category: 'Produce' },
+      { name: 'Onion, carrot, celery', amount: '¼ cup each per person', category: 'Produce' },
+      { name: 'Low-sodium vegetable broth', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Thyme & rosemary', amount: '½ tsp each', category: 'Spices & Condiments' },
     ],
-    // Lentils 172, potato 160, mushrooms 15, veggies 50
     calories: 430, protein: 18, carbs: 75, fat: 4, fiber: 14, sodium: 310,
     costPerServing: 1.90,
   },
@@ -479,15 +485,15 @@ export const MEALS: Meal[] = [
     name: 'Chickpea Coconut Curry with Rice',
     type: 'dinner',
     tags: ['vegetarian', 'vegan', 'halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1455619452474-d2be8b1e70cd'),
     ingredients: [
-      { name: 'Canned chickpeas (drained)', amount: '½ cup' },
-      { name: 'Light coconut milk', amount: '¼ cup' },
-      { name: 'Canned diced tomatoes', amount: '¼ cup' },
-      { name: 'Curry powder, cumin, coriander', amount: '1 tsp each' },
-      { name: 'Onion & garlic', amount: '¼ onion, 2 cloves' },
-      { name: 'White rice', amount: '½ cup dry' },
+      { name: 'Canned chickpeas', amount: '½ cup per person', category: 'Canned & Pantry' },
+      { name: 'Light coconut milk', amount: '¼ cup per person', category: 'Canned & Pantry' },
+      { name: 'Canned diced tomatoes', amount: '¼ cup per person', category: 'Canned & Pantry' },
+      { name: 'Curry powder, cumin, coriander', amount: '1 tsp each', category: 'Spices & Condiments' },
+      { name: 'Onion & garlic', amount: '¼ onion, 2 cloves', category: 'Produce' },
+      { name: 'White rice', amount: '½ cup dry per person', category: 'Grains & Bread' },
     ],
-    // Chickpeas 135, coconut milk 45, rice 206, tomatoes 20
     calories: 458, protein: 14, carbs: 79, fat: 10, fiber: 10, sodium: 290,
     costPerServing: 1.60,
   },
@@ -496,15 +502,16 @@ export const MEALS: Meal[] = [
     name: 'Garlic Shrimp & Vegetable Rice',
     type: 'dinner',
     tags: ['halal', 'gluten-free', 'dairy-free'],
+    photo: UNSPLASH('1563379091339-03b21ab4a4f8'),
     ingredients: [
-      { name: 'Shrimp (peeled, deveined)', amount: '4 oz' },
-      { name: 'White rice', amount: '½ cup dry' },
-      { name: 'Zucchini', amount: '½ medium' },
-      { name: 'Garlic', amount: '3 cloves' },
-      { name: 'Olive oil', amount: '1 tbsp' },
-      { name: 'Lemon & parsley', amount: '¼ lemon, handful' },
+      { name: 'Shrimp (peeled & deveined)', amount: '4 oz per person', category: 'Protein' },
+      { name: 'White rice', amount: '½ cup dry per person', category: 'Grains & Bread' },
+      { name: 'Zucchini', amount: '½ medium per person', category: 'Produce' },
+      { name: 'Garlic', amount: '3 cloves per person', category: 'Produce' },
+      { name: 'Olive oil', amount: '1 tbsp per person', category: 'Oils & Fats' },
+      { name: 'Lemon', amount: '¼ per person', category: 'Produce' },
+      { name: 'Fresh parsley', amount: 'handful', category: 'Produce' },
     ],
-    // Shrimp 112, rice 206, zucchini 17, oil 120
     calories: 430, protein: 29, carbs: 50, fat: 13, fiber: 2, sodium: 440,
     costPerServing: 2.80,
   },
