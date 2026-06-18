@@ -1,6 +1,25 @@
 import { MEALS, type DietTag, type Meal, getUsdaMinimum } from './data';
 import { totalHouseholdNeeds, type HouseholdMember, type NutritionNeeds } from './nutrition';
 
+// Simple seeded PRNG (mulberry32) so shuffle is reproducible per seed
+// but different across seeds — makes regenerate produce a new plan.
+function makePrng(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s ^ (s >>> 15), s | 1) ^ (s >>> 11) ^ (s >>> 16) ^ (s << 26)) >>> 0;
+    return s / 0x100000000;
+  };
+}
+
+function shuffle<T>(arr: T[], rand: () => number): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export type { HouseholdMember };
 
 export interface DayPlan {
@@ -109,7 +128,9 @@ export function generatePlan(
   monthlyBudget: number,
   members: HouseholdMember[],
   selectedTags: DietTag[],
+  seed: number = 1,
 ): WeekPlan {
+  const rand = makePrng(seed);
   const memberCount  = members.length;
   const weeklyBudget = monthlyBudget / 4;
   const dailyBudget  = weeklyBudget  / 7;
@@ -120,9 +141,11 @@ export function generatePlan(
   const lunches    = getPool('lunch',     selectedTags);
   const dinners    = getPool('dinner',    selectedTags);
 
-  const bs = breakfasts.length ? breakfasts : MEALS.filter((m) => m.type === 'breakfast');
-  const ls = lunches.length    ? lunches    : MEALS.filter((m) => m.type === 'lunch');
-  const ds = dinners.length    ? dinners    : MEALS.filter((m) => m.type === 'dinner');
+  // Shuffle pools so each seed yields a different ordering — same best score
+  // but ties broken differently, giving genuine plan variety on regenerate.
+  const bs = shuffle(breakfasts.length ? breakfasts : MEALS.filter((m) => m.type === 'breakfast'), rand);
+  const ls = shuffle(lunches.length    ? lunches    : MEALS.filter((m) => m.type === 'lunch'),     rand);
+  const ds = shuffle(dinners.length    ? dinners    : MEALS.filter((m) => m.type === 'dinner'),    rand);
 
   const usedCount: Record<string, number> = {};
 

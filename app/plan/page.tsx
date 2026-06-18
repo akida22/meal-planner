@@ -129,8 +129,9 @@ function DayCard({
 function PlanContent() {
   const params = useSearchParams();
   const router = useRouter();
-  const [plan, setPlan]             = useState<WeekPlan | null>(null);
-  const [selected, setSelected]     = useState<Set<string>>(new Set());
+  const [plan, setPlan]         = useState<WeekPlan | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [seed, setSeed]         = useState(1);
 
   const budget  = parseFloat(params.get('budget') || '0');
   const women   = parseInt(params.get('women') || '1');
@@ -155,14 +156,20 @@ function PlanContent() {
   ];
   const memberCount = householdMembers.length || 1;
 
-  const build = useCallback(() => {
+  const build = useCallback((s: number) => {
     if (!budget) return;
-    setPlan(generatePlan(budget, householdMembers.length ? householdMembers : [{ age: 35, gender: 'female', isAdult: true }], selectedTags));
+    setPlan(generatePlan(budget, householdMembers.length ? householdMembers : [{ age: 35, gender: 'female', isAdult: true }], selectedTags, s));
     setSelected(new Set());
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [budget, women, men, childStr, tagsRaw]);
 
-  useEffect(() => { build(); }, [build]);
+  function regenerate() {
+    const next = seed + 1;
+    setSeed(next);
+    build(next);
+  }
+
+  useEffect(() => { build(seed); }, [build]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleMeal(id: string) {
     setSelected((prev) => {
@@ -264,7 +271,7 @@ function PlanContent() {
         ))}
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: 24 }}>
-          <button className="btn btn--ghost btn--sm" onClick={build}>↻ Regenerate</button>
+          <button className="btn btn--ghost btn--sm" onClick={regenerate}>↻ Regenerate</button>
           <button className="btn btn--ghost btn--sm" onClick={() => router.push('/')}>← Change preferences</button>
         </div>
 
