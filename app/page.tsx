@@ -235,6 +235,17 @@ export default function Home() {
                     </span>
                   </label>
                   <div className="diet-grid">
+                    {/* No restrictions chip */}
+                    <button
+                      type="button"
+                      className={`diet-chip ${selectedTags.size === 0 ? 'diet-chip--active' : ''}`}
+                      onClick={() => setSelectedTags(new Set())}
+                    >
+                      <span style={{ fontSize: 20 }}>🍽️</span>
+                      <span className="diet-chip__label">No restrictions</span>
+                      <span className="diet-chip__desc">All foods included</span>
+                    </button>
+
                     {DIET_OPTIONS.map((o) => {
                       const checked = selectedTags.has(o.value);
                       return (
@@ -251,9 +262,6 @@ export default function Home() {
                       );
                     })}
                   </div>
-                  {selectedTags.size === 0 && (
-                    <span className="hint">No restrictions — includes all foods (omnivore).</span>
-                  )}
                 </div>
 
                 <button type="submit" className="btn btn--primary btn--full">
