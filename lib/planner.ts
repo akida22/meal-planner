@@ -1,5 +1,7 @@
 import { MEALS, type DietTag, type Meal, getUsdaMinimum } from './data';
-import { totalHouseholdNeeds, type NutritionNeeds } from './nutrition';
+import { totalHouseholdNeeds, type HouseholdMember, type NutritionNeeds } from './nutrition';
+
+export type { HouseholdMember };
 
 export interface DayPlan {
   day: number;
@@ -15,6 +17,8 @@ export interface DayPlan {
   dayFiber: number;
   daySodium: number;
   meetsNutrition: boolean;
+  meetsCalories: boolean;
+  meetsProtein: boolean;
 }
 
 export interface WeekPlan {
@@ -25,8 +29,7 @@ export interface WeekPlan {
   withinBudget: boolean;
   belowUsda: boolean;
   usdaMinimum: number;
-  adults: number;
-  childAges: number[];
+  members: HouseholdMember[];
   selectedTags: DietTag[];
   needs: NutritionNeeds;
 }
@@ -43,37 +46,30 @@ function getPool(type: Meal['type'], tags: DietTag[]): Meal[] {
 
 /**
  * Score a (breakfast, lunch, dinner) triple.
- * Goals in priority order:
- *   1. Stay within daily budget
- *   2. Meet household nutrition targets
- *   3. Spend close to (but not over) daily budget (within $0–5 under)
- *   4. Maximise combined nutrition quality
- *   5. Variety — penalise repeated meals
+ *
+ * Priority order (nutrition FIRST, then budget use):
+ *  1. Must be within daily budget (hard cap)
+ *  2. +20 pts for meeting calorie target
+ *  3. +20 pts for meeting protein target
+ *  4. +5 pts for meeting fiber target
+ *  5. +4 pts proportional to how much of the daily budget is used (spend more = better nutrition)
+ *  6. -0.5 pts per repeat use of a meal (variety)
  */
 function score(
   b: Meal, l: Meal, d: Meal,
-  members: number,
+  memberCount: number,
   dailyBudget: number,
   needs: NutritionNeeds,
   usedCount: Record<string, number>,
 ): number {
-  const cost    = (b.costPerServing + l.costPerServing + d.costPerServing) * members;
+  const cost = (b.costPerServing + l.costPerServing + d.costPerServing) * memberCount;
   if (cost > dailyBudget) return -Infinity;
 
-  const cal     = (b.calories + l.calories + d.calories) * members;
-  const protein = (b.protein  + l.protein  + d.protein)  * members;
-  const fiber   = (b.fiber    + l.fiber    + d.fiber)     * members;
+  const cal    = (b.calories + l.calories + d.calories) * memberCount;
+  const prot   = (b.protein  + l.protein  + d.protein)  * memberCount;
+  const fiber  = (b.fiber    + l.fiber    + d.fiber)     * memberCount;
 
-  const meetsNutrition = cal >= needs.calories && protein >= needs.protein;
-
-  // How much of the daily budget is being used (0–1, reward higher use)
   const budgetUse = cost / dailyBudget;
-  // Penalise if more than $5 under daily budget (unused money = worse nutrition potential)
-  const budgetGap = Math.max(0, dailyBudget - cost - 5 / 7);
-
-  const calScore  = Math.min(cal     / needs.calories, 1.5);
-  const protScore = Math.min(protein / needs.protein,  1.5);
-  const fibScore  = Math.min(fiber   / needs.fiber,    1.5);
 
   const variety = -(
     (usedCount[b.id] ?? 0) +
@@ -82,31 +78,25 @@ function score(
   ) * 0.5;
 
   return (
-    (meetsNutrition ? 15 : 0) +
-    calScore  * 3 +
-    protScore * 3 +
-    fibScore  * 1 +
+    (cal  >= needs.calories ? 20 : (cal  / needs.calories) * 10) +
+    (prot >= needs.protein  ? 20 : (prot / needs.protein)  * 10) +
+    (fiber >= needs.fiber   ? 5  : (fiber / needs.fiber)   * 2.5) +
     budgetUse * 4 +
-    variety   -
-    budgetGap * 0.5
+    variety
   );
 }
 
 function pickDay(
-  breakfasts: Meal[],
-  lunches: Meal[],
-  dinners: Meal[],
-  members: number,
-  dailyBudget: number,
-  needs: NutritionNeeds,
-  usedCount: Record<string, number>,
+  breakfasts: Meal[], lunches: Meal[], dinners: Meal[],
+  memberCount: number, dailyBudget: number,
+  needs: NutritionNeeds, usedCount: Record<string, number>,
 ): { b: Meal; l: Meal; d: Meal } {
   let best: { b: Meal; l: Meal; d: Meal; s: number } | null = null;
 
   for (const b of breakfasts) {
     for (const l of lunches) {
       for (const d of dinners) {
-        const s = score(b, l, d, members, dailyBudget, needs, usedCount);
+        const s = score(b, l, d, memberCount, dailyBudget, needs, usedCount);
         if (best === null || s > best.s) best = { b, l, d, s };
       }
     }
@@ -117,15 +107,14 @@ function pickDay(
 
 export function generatePlan(
   monthlyBudget: number,
-  adults: number,
-  childAges: number[],
+  members: HouseholdMember[],
   selectedTags: DietTag[],
 ): WeekPlan {
-  const members      = adults + childAges.length;
+  const memberCount  = members.length;
   const weeklyBudget = monthlyBudget / 4;
   const dailyBudget  = weeklyBudget  / 7;
-  const needs        = totalHouseholdNeeds(adults, childAges);
-  const usdaMinimum  = getUsdaMinimum(members);
+  const needs        = totalHouseholdNeeds(members);
+  const usdaMinimum  = getUsdaMinimum(memberCount);
 
   const breakfasts = getPool('breakfast', selectedTags);
   const lunches    = getPool('lunch',     selectedTags);
@@ -137,37 +126,40 @@ export function generatePlan(
 
   const usedCount: Record<string, number> = {};
 
-  const days: DayPlan[] = DAY_LABELS.map((label, i) => {
-    const { b, l, d } = pickDay(bs, ls, ds, members, dailyBudget, needs, usedCount);
+  const days: DayPlan[] = DAY_LABELS.map((label) => {
+    const { b, l, d } = pickDay(bs, ls, ds, memberCount, dailyBudget, needs, usedCount);
 
     usedCount[b.id] = (usedCount[b.id] ?? 0) + 1;
     usedCount[l.id] = (usedCount[l.id] ?? 0) + 1;
     usedCount[d.id] = (usedCount[d.id] ?? 0) + 1;
 
-    const dayCost     = (b.costPerServing + l.costPerServing + d.costPerServing) * members;
-    const dayCalories = (b.calories + l.calories + d.calories) * members;
-    const dayProtein  = (b.protein  + l.protein  + d.protein)  * members;
-    const dayCarbs    = (b.carbs    + l.carbs    + d.carbs)     * members;
-    const dayFat      = (b.fat      + l.fat      + d.fat)       * members;
-    const dayFiber    = (b.fiber    + l.fiber    + d.fiber)     * members;
-    const daySodium   = (b.sodium   + l.sodium   + d.sodium)    * members;
+    const dayCost     = (b.costPerServing + l.costPerServing + d.costPerServing) * memberCount;
+    const dayCalories = (b.calories + l.calories + d.calories) * memberCount;
+    const dayProtein  = (b.protein  + l.protein  + d.protein)  * memberCount;
+    const dayCarbs    = (b.carbs    + l.carbs    + d.carbs)     * memberCount;
+    const dayFat      = (b.fat      + l.fat      + d.fat)       * memberCount;
+    const dayFiber    = (b.fiber    + l.fiber    + d.fiber)     * memberCount;
+    const daySodium   = (b.sodium   + l.sodium   + d.sodium)    * memberCount;
+
+    const meetsCalories = dayCalories >= needs.calories;
+    const meetsProtein  = dayProtein  >= needs.protein;
 
     return {
-      day: i + 1, label,
+      day: DAY_LABELS.indexOf(label) + 1, label,
       breakfast: b, lunch: l, dinner: d,
       dayCost, dayCalories, dayProtein, dayCarbs, dayFat, dayFiber, daySodium,
-      meetsNutrition: dayCalories >= needs.calories && dayProtein >= needs.protein,
+      meetsCalories, meetsProtein,
+      meetsNutrition: meetsCalories && meetsProtein,
     };
   });
 
   const totalCost = days.reduce((s, d) => s + d.dayCost, 0);
 
   return {
-    days, totalCost,
-    weeklyBudget, monthlyBudget,
+    days, totalCost, weeklyBudget, monthlyBudget,
     withinBudget: totalCost <= weeklyBudget,
     belowUsda: monthlyBudget < usdaMinimum * 4,
     usdaMinimum: usdaMinimum * 4,
-    adults, childAges, selectedTags, needs,
+    members, selectedTags, needs,
   };
 }

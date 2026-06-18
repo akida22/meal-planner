@@ -132,20 +132,35 @@ function PlanContent() {
   const [plan, setPlan]             = useState<WeekPlan | null>(null);
   const [selected, setSelected]     = useState<Set<string>>(new Set());
 
-  const budget     = parseFloat(params.get('budget')   || '0');
-  const adults     = parseInt(params.get('adults')     || '2');
+  const budget  = parseFloat(params.get('budget') || '0');
+  const women   = parseInt(params.get('women') || '1');
+  const men     = parseInt(params.get('men')   || '1');
   const childStr   = params.get('children') || '';
-  const childAges  = childStr ? childStr.split(',').filter(Boolean).map(Number) : [];
   const tagsRaw    = params.get('tags') || '';
   const selectedTags = tagsRaw ? (tagsRaw.split(',').filter(Boolean) as DietTag[]) : [];
-  const members    = adults + childAges.length;
+
+  // Parse children encoded as "8f,12m" (age + gender initial)
+  const parsedChildren = childStr
+    ? childStr.split(',').filter(Boolean).map((s) => {
+        const gender = s.endsWith('m') ? 'male' : 'female';
+        const age = parseInt(s) || 8;
+        return { age, gender: gender as 'male' | 'female', isAdult: false };
+      })
+    : [];
+
+  const householdMembers = [
+    ...Array.from({ length: women }, () => ({ age: 35, gender: 'female' as const, isAdult: true })),
+    ...Array.from({ length: men },   () => ({ age: 35, gender: 'male'   as const, isAdult: true })),
+    ...parsedChildren,
+  ];
+  const memberCount = householdMembers.length || 1;
 
   const build = useCallback(() => {
     if (!budget) return;
-    setPlan(generatePlan(budget, adults, childAges, selectedTags));
+    setPlan(generatePlan(budget, householdMembers.length ? householdMembers : [{ age: 35, gender: 'female', isAdult: true }], selectedTags));
     setSelected(new Set());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [budget, adults, childStr, tagsRaw]);
+  }, [budget, women, men, childStr, tagsRaw]);
 
   useEffect(() => { build(); }, [build]);
 
@@ -179,7 +194,8 @@ function PlanContent() {
   }
 
   const daysMetNutrition = plan.days.filter((d) => d.meetsNutrition).length;
-  const avgCalPerPerson  = Math.round(plan.days.reduce((s, d) => s + d.dayCalories, 0) / 7 / members);
+  const avgCalPerPerson  = Math.round(plan.days.reduce((s, d) => s + d.dayCalories, 0) / 7 / memberCount);
+  const childCount = parsedChildren.length;
 
   return (
     <main className="page">
@@ -189,8 +205,8 @@ function PlanContent() {
         {plan.belowUsda && (
           <div className="warning">
             ⚠️ Your monthly budget of <strong>{fmt(budget)}</strong> ({fmt(plan.weeklyBudget)}/week) is below
-            the USDA Thrifty Food Plan minimum of <strong>{fmt(plan.usdaMinimum)}/month</strong> for {members}{' '}
-            {members === 1 ? 'person' : 'people'}. We've built the most nutritious plan possible within your budget.
+            the USDA Thrifty Food Plan minimum of <strong>{fmt(plan.usdaMinimum)}/month</strong> for {memberCount}{' '}
+            {memberCount === 1 ? 'person' : 'people'}. We've built the most nutritious plan possible within your budget.
           </div>
         )}
 
@@ -198,8 +214,10 @@ function PlanContent() {
           <div>
             <h1>Your 7-Day Meal Plan</h1>
             <div style={{ fontSize: 13, color: 'var(--brown-3)', marginTop: 4 }}>
-              {adults} adult{adults !== 1 ? 's' : ''}
-              {childAges.length > 0 && ` · ${childAges.length} child${childAges.length !== 1 ? 'ren' : ''} (ages ${childAges.join(', ')})`}
+              {women > 0 && `${women} woman${women !== 1 ? '' : ''}`}
+              {women > 0 && men > 0 && ' · '}
+              {men > 0 && `${men} man${men !== 1 ? '' : ''}`}
+              {childCount > 0 && ` · ${childCount} child${childCount !== 1 ? 'ren' : ''}`}
             </div>
           </div>
           <div className="plan-meta">
@@ -222,7 +240,7 @@ function PlanContent() {
           <div className="summary-bar__item">
             <div className="summary-bar__value">{avgCalPerPerson}</div>
             <div className="summary-bar__label">Cal / person / day</div>
-            <div className="summary-bar__sub">Target: {Math.round(plan.needs.calories / members)}</div>
+            <div className="summary-bar__sub">Target: {Math.round(plan.needs.calories / memberCount)}</div>
           </div>
           <div className="summary-bar__item">
             <div className="summary-bar__value" style={{ color: daysMetNutrition === 7 ? 'var(--green)' : 'var(--yellow)' }}>
@@ -242,7 +260,7 @@ function PlanContent() {
         </div>
 
         {plan.days.map((day) => (
-          <DayCard key={day.day} day={day} members={members} selected={selected} onToggle={toggleMeal} />
+          <DayCard key={day.day} day={day} members={memberCount} selected={selected} onToggle={toggleMeal} />
         ))}
 
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginTop: 24 }}>
